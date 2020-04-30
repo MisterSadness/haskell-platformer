@@ -1,0 +1,7 @@
+resolver: lts-15.3
+packages:
+- .
+extra-deps:
+- sdl2-2.5.2.0
+- Yampa-0.13.1
+
