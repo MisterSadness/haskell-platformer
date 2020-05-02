@@ -14,7 +14,7 @@ category:       Game
 executable game
   main-is: Main.hs
   other-modules:
-      Graphics, GameObjects
+      Graphics, GameObjects, Input
   other-extensions:    
       Arrows
   hs-source-dirs:

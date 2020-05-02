@@ -1,10 +1,16 @@
 module GameObjects
     where
 
-data Player = Player { playerHeight :: Double, playerVelocity :: Double}
+data Position = Position { xPosition :: Int, yPosition :: Int }
+data Velocity = Velocity { xVelocity :: Int, yVelocity :: Int }
 
+type Distance = Int
 type Score = Int
 
-data Obstacle = Obstacle { obstacleHeight :: Double, obstaclePosition :: Double }
+data Player = Player { playerPosition :: Position, playerVelocity :: Velocity}
+data Obstacle = Obstacle { obstacleHeight :: Int, obstaclePosition :: Position }
 
-data Game = InProgress Player Score Obstacle | Finished Score
+data Game = InProgress Player Distance [Obstacle] | Finished Score
+
+defaultPlayer :: Player
+defaultPlayer = Player (Position 0 0) (Velocity 0 0)
