@@ -1,45 +1,41 @@
-module Graphics
-    where
+module Graphics where
 
-import GameObjects
-import Data.Text
+import           GameObjects
 import qualified SDL
-
-windowHeight :: Int
-windowHeight = 500
-
-windowWidth :: Int
-windowWidth = 600
-
-groundHeight :: Int
-groundHeight = windowHeight `div` 8
+import           Data.Colour
+import           Data.Colour.SRGB
+import           Data.Colour.Names
 
 class Renderable a where
     render :: SDL.Renderer -> a -> IO ()
 
 instance Renderable Player where
-    render renderer (Player position _) = drawSquare renderer position 50
+    render renderer (Player position _ _) = drawSquare renderer position 50
 
 instance Renderable Obstacle where
-    render renderer (Obstacle height position) = drawSquare renderer position height
+    render renderer (Obstacle height position) =
+        drawSquare renderer position height
 
 instance Renderable Game where
-    render renderer (InProgress player score obstacles) = do
-        render renderer player 
+    render renderer (InProgress player _ obstacles) = do
+        setColour renderer skyblue >> SDL.clear renderer
+        setColour renderer green
+            >> drawRectangle renderer (0, 0) (windowWidth, groundHeight)
+        setColour renderer darkmagenta >> render renderer player
         mapM_ (render renderer) obstacles
-    render renderer (Finished score) = undefined
+    render _ (Finished _) = undefined
 
-drawRectangle :: SDL.Renderer -> Position -> (Int, Int) -> IO ()
-drawRectangle renderer (Position px py) (x, y) = setRenderAttrs >> renderShape
-    where 
-        setRenderAttrs = SDL.rendererDrawColor renderer SDL.$= SDL.V4 0 255 0 maxBound
-        renderShape = SDL.fillRect renderer $ Just $
-                                     SDL.Rectangle (SDL.P (SDL.V2 (toEnum px) (toEnum py)))
-                                                   (SDL.V2 (toEnum x) (toEnum y))
+drawRectangle :: SDL.Renderer -> Position -> (Double, Double) -> IO ()
+drawRectangle renderer (px, py) (width, height) =
+    SDL.fillRect renderer $ Just $ SDL.Rectangle
+        (SDL.P (SDL.V2 (convert px) (convert (windowHeight - py - height))))
+        (SDL.V2 (convert width) (convert height))
+    where convert = toEnum . round
 
-drawSquare :: SDL.Renderer -> Position -> Int -> IO ()
-drawSquare renderer (Position x y) size = do
-    SDL.rendererDrawColor renderer SDL.$= SDL.V4 0 255 0 maxBound
-    SDL.fillRect renderer $ Just $
-                                     SDL.Rectangle (SDL.P (SDL.V2 (toEnum x) (toEnum $ windowHeight - y - size)))
-                                                   (SDL.V2 (toEnum size) (toEnum size))
+drawSquare :: SDL.Renderer -> Position -> Double -> IO ()
+drawSquare renderer pos size = drawRectangle renderer pos (size, size)
+
+setColour :: SDL.Renderer -> Colour Double -> IO ()
+setColour renderer colour =
+    let (RGB r g b) = toSRGB24 colour
+    in  SDL.rendererDrawColor renderer SDL.$= SDL.V4 r g b maxBound

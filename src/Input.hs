@@ -5,15 +5,15 @@ import qualified SDL
 import SDL.Input.Keyboard.Codes
 import FRP.Yampa
 
-data AppInput = AppInput { 
+data AppInput = AppInput {
     inputKeyPressed :: Maybe SDL.Scancode,
-    inputQuit :: Bool 
+    inputQuit :: Bool
     }
 
 initAppInput :: AppInput
 initAppInput = AppInput {
     inputKeyPressed = Nothing,
-    inputQuit = False 
+    inputQuit = False
     }
 
 nextAppInput :: AppInput -> SDL.EventPayload -> AppInput
@@ -26,7 +26,7 @@ nextAppInput inp (SDL.KeyboardEvent ev)
 nextAppInput inp _ = inp
 
 
-data Command = MoveLeft | MoveRight
+data Command = MoveLeft | MoveRight | Jump
 
 parseWinInput :: SF (Event SDL.EventPayload) AppInput
 parseWinInput = accumHoldBy nextAppInput initAppInput
@@ -36,6 +36,10 @@ keyPress = inputKeyPressed ^>> edgeJust
 
 keyPressed :: SDL.Scancode -> SF AppInput (Event ())
 keyPressed code = keyPress >>^ filterE (code ==) >>^ tagWith ()
+
+keyHeld :: SDL.Scancode -> SF AppInput (Event ())
+keyHeld code = proc input -> do
+    returnA -< (`tag` ()) <<< filterE (code==) <<< maybeToEvent $ inputKeyPressed input
 
 quitEvent :: SF AppInput (Event ())
 quitEvent = arr inputQuit >>> edge
@@ -47,4 +51,5 @@ parseAppInput :: SF AppInput (Event Command)
 parseAppInput = proc input -> do
     leftPressed <- keyPressed ScancodeA -< input
     rightPressed <- keyPressed ScancodeD -< input
-    returnA -< lMerge (tag leftPressed MoveLeft) (tag rightPressed MoveRight)
+    spacePressed <- keyPressed ScancodeSpace -< input
+    returnA -< mergeEvents [tag leftPressed MoveLeft, tag rightPressed MoveRight, tag spacePressed Jump]

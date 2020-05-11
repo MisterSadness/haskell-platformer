@@ -25,4 +25,5 @@ executable game
     , sdl2 >=2.5
     , Yampa >=0.13
     , text
+    , colour
   default-language: Haskell2010

@@ -2,31 +2,22 @@
 module Main where
 
 import FRP.Yampa
-import FRP.Yampa.Switches
-import FRP.Yampa.Arrow
 import qualified SDL
-
 import Data.Text
 import Control.Concurrent.MVar
 import Control.Monad
-
 import Graphics
 import GameObjects
 import Input
 
 main :: IO ()
-main = animate (pack "Game") windowWidth windowHeight 
-        (parseWinInput >>> (game &&& handleExit))
+main = animate (pack "Game") windowWidth windowHeight (parseWinInput >>> (game &&& handleExit))
 
--- initialState = undefined
--- senseInput = undefined
--- consumeOutput = undefined
--- mainSf = undefined
-
-animate :: Text                -- ^ window title
-        -> Int                 -- ^ window width in pixels
-        -> Int                 -- ^ window height in pixels
-        -> SF (FRP.Yampa.Event SDL.EventPayload) (Game, Bool) -- ^ signal function to animate
+animate :: Renderable a
+        => Text                   
+        -> Double                 
+        -> Double
+        -> SF (FRP.Yampa.Event SDL.EventPayload) (a, Bool)
         -> IO ()
 animate title winWidth winHeight sf = do
     SDL.initialize [SDL.InitVideo]
@@ -34,20 +25,17 @@ animate title winWidth winHeight sf = do
     SDL.showWindow window
 
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
-    SDL.rendererDrawColor renderer SDL.$= SDL.V4 maxBound maxBound maxBound maxBound
 
-    lastInteraction <- newMVar =<< SDL.time
+    lastDoubleeraction <- newMVar =<< SDL.time
 
     let senseInput _canBlock = do
             currentTime <- SDL.time
-            dt <- (currentTime -) <$> swapMVar lastInteraction currentTime
+            dt <- (currentTime -) <$> swapMVar lastDoubleeraction currentTime
             mEvent <- SDL.pollEvent
             return (dt, Event . SDL.eventPayload <$> mEvent)
 
         renderOutput changed (game_, shouldExit) = do
             when changed $ do
-                SDL.rendererDrawColor renderer SDL.$= SDL.V4 0 0 0 255
-                SDL.clear renderer
                 render renderer game_
                 SDL.present renderer
             return shouldExit
@@ -58,33 +46,52 @@ animate title winWidth winHeight sf = do
     SDL.destroyWindow window
     SDL.quit
 
-    where 
-        windowConf = SDL.defaultWindow { SDL.windowInitialSize = SDL.V2 (fromIntegral winWidth) (fromIntegral winHeight) }
+    where windowConf = SDL.defaultWindow 
+            { SDL.windowInitialSize = SDL.V2 (round winWidth) (round winHeight) }
 
+movingPlayer :: Player -> SF a Player
+movingPlayer (Player pos0 v0 a0) = proc _ -> do
+    v <- imIntegral v0 -< a0
+    pos <- imIntegral pos0 -< v
+    player <- stopPlayer groundHeight -< Player pos v a0
+    returnA -< player
+
+stopPlayer :: Double -> SF Player Player
+stopPlayer bound = arr stop 
+    where
+        stop p@(Player (x, y) (vx, _) _) = 
+            if y <= bound 
+                then Player (x, bound) (vx, 0) noAcceleration 
+                else p
+
+jumpingPlayer :: Player -> SF AppInput Player
+jumpingPlayer player0 = switch sf cont
+    where
+        sf = proc input -> do
+            player <- movingPlayer player0 -< ()
+            command <- parseAppInput -< input
+            returnA -< (player, command `attach` player)
+        cont (command, player) = jumpingPlayer $ speedUp command player
+
+speedUp :: Command -> Player -> Player
+speedUp MoveLeft (Player pos (vx, vy) acc) = Player pos (vx-40, vy) acc
+speedUp MoveRight (Player pos (vx, vy) acc) = Player pos (vx+40, vy) acc
+speedUp Jump (Player (x, y) (vx, vy) _) = Player (x, y) (vx, vy+100) normalAcceleration 
 
 game :: SF AppInput Game
-game = switch sf (\_ -> game)
-    where sf = proc input -> do
-              gameState <- gameSession -< input
-              gameOver <- edge -< False 
-              returnA -< (gameState, gameOver)
+game = switch sf $ const game
+    where
+        sf = proc input -> do
+            gameState <- gameSession -< input
+            gameOver <- edge -< False
+            returnA -< (gameState, gameOver)
 
 gameSession :: SF AppInput Game
 gameSession = proc input -> do
-    player <- movingPlayer defaultPlayer -< input
-    returnA -< InProgress player 0 []
+    player <- jumpingPlayer defaultPlayer -< input
+    score <- distance -< player
+    returnA -< InProgress player score []
 
-movingPlayer :: Player -> SF AppInput Player
-movingPlayer player = dSwitch sf cont
-    where
-        sf = proc input -> do
-            command <- parseAppInput -< input
-            returnA -< (player, command)
-        cont command = movingPlayer $ move command player
-    
-move :: Command -> Player -> Player
-move MoveLeft (Player (Position x y) vel) = (Player (Position (x-10) y) vel)
-move MoveRight (Player (Position x y) vel) = (Player (Position (x+10) y) vel)
+distance :: SF Player Distance
+distance = arr (\(Player (x, _) _ _) -> x)
 
-defaultGame :: Game
-defaultGame = InProgress (Player (Position 10 0) (Velocity 0 0)) 0 [Obstacle 75 (Position 100 50)]
