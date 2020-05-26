@@ -10,7 +10,7 @@ class Renderable a where
     render :: SDL.Renderer -> a -> IO ()
 
 instance Renderable Player where
-    render renderer (Player position _ _) = drawSquare renderer position 50
+    render renderer (Player (_, y) _ _) = drawSquare renderer (playerOffset, y) playerSize
 
 instance Renderable Obstacle where
     render renderer (Obstacle height position) =
@@ -18,11 +18,12 @@ instance Renderable Obstacle where
 
 instance Renderable Game where
     render renderer (InProgress player _ obstacles) = do
+
         setColour renderer skyblue >> SDL.clear renderer
         setColour renderer green
             >> drawRectangle renderer (0, 0) (windowWidth, groundHeight)
         setColour renderer darkmagenta >> render renderer player
-        mapM_ (render renderer) obstacles
+        setColour renderer brown >> mapM_ (render renderer) (visibleObstacles player obstacles)
     render _ (Finished _) = undefined
 
 drawRectangle :: SDL.Renderer -> Position -> (Double, Double) -> IO ()

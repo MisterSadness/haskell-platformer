@@ -4,4 +4,5 @@ packages:
 extra-deps:
 - sdl2-2.5.2.0
 - Yampa-0.13.1
+- lens-4.19.2
 

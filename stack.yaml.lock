@@ -18,6 +18,13 @@ packages:
       sha256: 2ebdfafc0143a66132e1f790fc3909c93654ee89fbe468574c5c2a36070dc6b3
   original:
     hackage: Yampa-0.13.1
+- completed:
+    hackage: lens-4.19.2@sha256:d6264016fb6e8232e3b8c77ce98e6b123691723ebb84165941facf090bc58f5b,15493
+    pantry-tree:
+      size: 8330
+      sha256: 84518578f0899196983f10793d327cc153abd69b9ee029858cde7cdfc516a11e
+  original:
+    hackage: lens-4.19.2
 snapshots:
 - completed:
     size: 491373

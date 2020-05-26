@@ -25,7 +25,6 @@ nextAppInput inp (SDL.KeyboardEvent ev)
       = inp { inputKeyPressed = Nothing }
 nextAppInput inp _ = inp
 
-
 data Command = MoveLeft | MoveRight | Jump
 
 parseWinInput :: SF (Event SDL.EventPayload) AppInput

@@ -26,4 +26,5 @@ executable game
     , Yampa >=0.13
     , text
     , colour
+    , lens >=4.19
   default-language: Haskell2010
