@@ -1,6 +1,7 @@
 {-# LANGUAGE Arrows #-}
 module Main where
 
+import HighScore
 import FRP.Yampa
 import qualified SDL
 import Data.Text
