@@ -1,4 +1,5 @@
 {-# LANGUAGE Arrows #-}
+-- | This module contains all the game logic that uses Yampa's signal functions, as well as the executables main function
 module Main where
 
 import HighScore
@@ -12,14 +13,15 @@ import GameObjects
 import Input
 import Control.Lens
 
+-- | The main function, defined using animate
 main :: IO ()
 main = animate (pack "Game") windowWidth windowHeight (parseWinInput >>> (gameSession &&& handleExit))
 
-animate :: Renderable a
-        => Text
+-- | A wrapper for Yampa's reactimate function, containing all actions required to use SDL
+animate :: Text
         -> Double
         -> Double
-        -> SF (FRP.Yampa.Event SDL.EventPayload) (a, Bool)
+        -> SF (FRP.Yampa.Event SDL.EventPayload) (Game, Bool)
         -> IO ()
 animate title winWidth winHeight sf = do
     SDL.initialize [SDL.InitVideo]
@@ -36,10 +38,11 @@ animate title winWidth winHeight sf = do
             mEvent <- SDL.pollEvent
             return (dt, Event . SDL.eventPayload <$> mEvent)
 
-        renderOutput changed (game_, shouldExit) = do
+        renderOutput changed (game@(Game _ d _), shouldExit) = do
             when changed $ do
-                render renderer game_
+                render renderer game
                 SDL.present renderer
+            when shouldExit $ updateScores $ floor d
             return shouldExit
 
     reactimate (return NoEvent) senseInput renderOutput sf
@@ -51,6 +54,7 @@ animate title winWidth winHeight sf = do
     where windowConf = SDL.defaultWindow
             { SDL.windowInitialSize = SDL.V2 (round winWidth) (round winHeight) }
 
+-- | A SF defining a player that moves according to their velocity and acceleration, without reacting to any input
 movingPlayer :: Player -> SF a Player
 movingPlayer (Player pos0 v0 a0) = proc _ -> do
     v <- imIntegral v0 -< a0
@@ -62,6 +66,7 @@ movingPlayer (Player pos0 v0 a0) = proc _ -> do
                 then Player (x, bound) (vx, 0) a
                 else p
 
+-- | A SF definig a player that reacts to user input
 jumpingPlayer :: Player -> SF AppInput Player
 jumpingPlayer player0 = switch sf cont
     where
@@ -71,17 +76,20 @@ jumpingPlayer player0 = switch sf cont
             returnA -< (player, command `attach` player)
         cont (command, player) = jumpingPlayer $ speedUp command player
 
+-- | A helper function to change the player according to input
 speedUp :: Command -> Player -> Player
 speedUp MoveLeft = (playerVelocity._1) -~ 40
 speedUp MoveRight = (playerVelocity._1) +~ 40
 speedUp Jump = (playerVelocity._2) +~ 200
 
+-- | The main game SF
 gameSession :: SF AppInput Game
 gameSession = proc input -> do
     player <- jumpingPlayer defaultPlayer -< input
     score <- distance -< player
     obstacles <- identity -< infiniteObstacles
-    returnA -< InProgress player score obstacles
+    returnA -< Game player score obstacles
 
+-- | A signal function that gets the distance player travelled in this game
 distance :: SF Player Distance
 distance = arr (\(Player (x, _) _ _) -> x-playerOffset)

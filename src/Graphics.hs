@@ -1,4 +1,8 @@
-module Graphics where
+-- | This module defines a Renderable class, that contains objects that can be represented on the screen in some way.
+module Graphics (
+    -- * Renderable instances
+    Renderable (..)
+) where
 
 import           GameObjects
 import qualified SDL
@@ -10,22 +14,23 @@ class Renderable a where
     render :: SDL.Renderer -> a -> IO ()
 
 instance Renderable Player where
+    -- | Draws a square at player's position
     render renderer (Player (_, y) _ _) = drawSquare renderer (playerOffset, y) playerSize
 
 instance Renderable Obstacle where
+    -- | Draws a square at obstacle's position, with size equal to obstacle's height
     render renderer (Obstacle height position) =
         drawSquare renderer position height
 
 instance Renderable Game where
-    render renderer (InProgress player _ obstacles) = do
+    -- | Renders all parts of the game, using the corresponding Renderable definitions for Player and Obstacle
+    render renderer (Game player _ obstacles) = do
+        setColour renderer skyblue      >> SDL.clear renderer
+        setColour renderer green        >> drawRectangle renderer (0, 0) (windowWidth, groundHeight)
+        setColour renderer darkmagenta  >> render renderer player
+        setColour renderer brown        >> mapM_ (render renderer) (visibleObstacles player obstacles)
 
-        setColour renderer skyblue >> SDL.clear renderer
-        setColour renderer green
-            >> drawRectangle renderer (0, 0) (windowWidth, groundHeight)
-        setColour renderer darkmagenta >> render renderer player
-        setColour renderer brown >> mapM_ (render renderer) (visibleObstacles player obstacles)
-    render _ (Finished _) = undefined
-
+-- helper functions, not exported
 drawRectangle :: SDL.Renderer -> Position -> (Double, Double) -> IO ()
 drawRectangle renderer (px, py) (width, height) =
     SDL.fillRect renderer $ Just $ SDL.Rectangle
